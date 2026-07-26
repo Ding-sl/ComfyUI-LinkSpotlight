@@ -99,8 +99,8 @@ the canvas — worst case you lose the spotlight until an update here.
 
 ## Support
 
-If this extension saves you from noodle blindness, you can support development
-on [Patreon](https://patreon.com/REPLACE_ME) ☕. Issues and PRs welcome.
+If this extension saves you from noodle blindness, a ⭐ on the repo helps a
+lot. Issues and PRs welcome — a support page is coming soon.
 
 ## License
 
