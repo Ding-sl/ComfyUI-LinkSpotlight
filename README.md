@@ -1,10 +1,12 @@
 # ComfyUI-LinkSpotlight
 
+![ComfyUI-LinkSpotlight](assets/images/ComfyUI-LinkSpotlight.png)
+
 Press **Alt+H** and instantly see only the links that matter: LinkSpotlight
 hides (or dims) every connection that doesn't touch the selected node, turning
 a spaghetti workflow into a readable one while you edit.
 
-![Demo](docs/screenshots/showcase.gif)
+![Demo](assets/videos/showcase.gif)
 
 ## Features
 
