@@ -1,0 +1,40 @@
+name: Frontend breakage
+description: LinkSpotlight disabled itself after a ComfyUI update ("unexpected LGraphCanvas API")
+title: "[Frontend] Broken on frontend "
+labels: ["frontend-compat"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ComfyUI frontend updates occasionally rename the canvas internals this
+        extension wraps. When that happens LinkSpotlight disables itself
+        cleanly and logs an error — this template collects exactly what is
+        needed for a quick fix. Thanks!
+  - type: input
+    id: frontend-version
+    attributes:
+      label: Frontend version that broke it
+      description: "`comfyui-frontend-package` version — shown in Settings → About."
+      placeholder: e.g. 1.46.0
+    validations:
+      required: true
+  - type: input
+    id: last-working
+    attributes:
+      label: Last known working frontend version (if known)
+      placeholder: e.g. 1.45.21
+  - type: textarea
+    id: console
+    attributes:
+      label: Console error
+      description: Paste the LinkSpotlight error line(s) from the browser console (F12).
+      render: text
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Sanity checks
+      options:
+        - label: The rest of the canvas still works normally (only LinkSpotlight is disabled)
+        - label: I confirmed the error appears with other custom extensions disabled

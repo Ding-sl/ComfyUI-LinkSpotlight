@@ -1,0 +1,15 @@
+# This project has zero runtime dependencies (no Python deps, no npm).
+# The only supply-chain surface is the GitHub Actions used by CI/publish,
+# so Dependabot tracks those. Security alerts for the repository itself are
+# enabled in Settings → Security → "Dependabot alerts" (see README of the
+# publishing phase).
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore"
