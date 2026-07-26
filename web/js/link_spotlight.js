@@ -270,7 +270,9 @@ app.registerExtension({
             type: "slider",
             attrs: { min: 0.1, max: 1, step: 0.05 },
             defaultValue: SETTINGS.nodeAlpha.def,
-            tooltip: "1 = unrelated nodes left untouched (default).",
+            tooltip:
+                "1 = unrelated nodes left untouched (default). "
+                + "No effect in the Vue nodes beta (DOM-rendered nodes).",
             category: ["LinkSpotlight", "Appearance", "Node opacity"],
             onChange: refreshCanvas,
         },

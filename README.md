@@ -85,6 +85,9 @@ the canvas — worst case you lose the spotlight until an update here.
 
 - Developed and tested against `comfyui-frontend-package` **1.45.x**
   (ComfyUI v0.28). Should work on any recent 1.4x frontend.
+- **Vue nodes beta ("Nodes 2.0"): supported** — the link spotlight works the
+  same there. Only the optional *node dimming* setting has no effect in that
+  mode: Vue nodes are DOM-rendered, not canvas-drawn.
 - Coexists with the core *Link Render Mode* setting (including "Hidden") and
   with link-drawing extensions — wrappers chain instead of replacing.
 
