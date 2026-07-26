@@ -102,7 +102,9 @@ the canvas — worst case you lose the spotlight until an update here.
 ## Support
 
 If this extension saves you from noodle blindness, a ⭐ on the repo helps a
-lot. Issues and PRs welcome — a support page is coming soon.
+lot — and you can support development on
+[Patreon](https://www.patreon.com/Dingsl) ☕. Everything stays free and
+open source for everyone. Issues and PRs welcome.
 
 ## License
 
