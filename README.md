@@ -4,7 +4,7 @@ Press **Alt+H** and instantly see only the links that matter: LinkSpotlight
 hides (or dims) every connection that doesn't touch the selected node, turning
 a spaghetti workflow into a readable one while you edit.
 
-![Demo](docs/demo.gif)
+![Demo](docs/screenshots/showcase.gif)
 
 ## Features
 
@@ -60,7 +60,7 @@ All settings live under **Settings → LinkSpotlight** and apply live while the
 spotlight is active.
 
 | Setting | Default | Description |
-|---------|---------|-------------|
+| ------- | ------- | ----------- |
 | Opacity of out-of-focus links | `0` | `0` hides them completely; `~0.07` keeps them faintly visible |
 | Spotlight depth | `1` | `1` = selected node's links only; `2` = neighbors' links too |
 | Turn off when the selection is cleared | `on` | Auto-exit on deselect; when off, an empty selection renders the graph normally |
