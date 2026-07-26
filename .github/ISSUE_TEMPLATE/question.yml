@@ -1,0 +1,16 @@
+name: Question
+description: Ask anything about usage or configuration
+title: "[Question] "
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: ComfyUI / frontend version (if relevant)
+      placeholder: e.g. v0.28.3 / 1.45.21
