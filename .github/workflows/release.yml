@@ -28,4 +28,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --title "ComfyUI-LinkSpotlight $GITHUB_REF_NAME" \
-            --notes-from-tag
+            --notes-from-tag \
+            --latest
