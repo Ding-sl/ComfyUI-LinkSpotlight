@@ -11,6 +11,6 @@ BugTracker = "https://github.com/Ding-sl/ComfyUI-LinkSpotlight/issues"
 
 [tool.comfy]
 # PublisherId: set this after creating your publisher on https://registry.comfy.org
-PublisherId = ""
+PublisherId = "ding-sl"
 DisplayName = "LinkSpotlight"
 Icon = ""
