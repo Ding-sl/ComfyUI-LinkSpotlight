@@ -1,12 +1,13 @@
 # Publishes the node to the Comfy Registry (https://registry.comfy.org)
 # whenever pyproject.toml changes on main (i.e. on a version bump).
 #
-# Prerequisites (Phase 2):
-#   1. Create a publisher on registry.comfy.org and put its id in
-#      pyproject.toml ([tool.comfy].PublisherId).
-#   2. Create an API key for that publisher and store it as the repository
-#      secret REGISTRY_ACCESS_TOKEN.
-# Until both are done, this workflow will fail — that is expected.
+# The steps below inline what Comfy-Org/publish-node-action@v1 does, but with
+# current action versions (the composite still pins Node 20-based
+# actions/checkout@v4 and actions/setup-python@v5, which are deprecated on
+# GitHub runners).
+#
+# Requires the repository secret REGISTRY_ACCESS_TOKEN (registry API key)
+# and [tool.comfy].PublisherId set in pyproject.toml.
 
 name: Publish to Comfy registry
 on:
@@ -18,7 +19,7 @@ on:
       - "pyproject.toml"
 
 permissions:
-  issues: write
+  contents: read
 
 jobs:
   publish-node:
@@ -28,7 +29,15 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v7
-      - name: Publish Custom Node
-        uses: Comfy-Org/publish-node-action@v1
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
-          personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+          python-version: "3.12"
+      - name: Install comfy-cli
+        run: pip install comfy-cli
+      - name: Publish to the registry
+        env:
+          REGISTRY_ACCESS_TOKEN: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+        run: |
+          comfy --skip-prompt --no-enable-telemetry env
+          comfy node publish --token "$REGISTRY_ACCESS_TOKEN"

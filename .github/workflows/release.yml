@@ -1,0 +1,31 @@
+# Creates a GitHub Release automatically whenever a v* tag is pushed.
+# The release notes are taken from the annotated tag message
+# (gh release create --notes-from-tag), so write them when tagging:
+#   git tag -a v1.2.3 --cleanup=verbatim -F notes.md && git push origin v1.2.3
+# Uses the gh CLI preinstalled on runners — no third-party actions.
+
+name: GitHub Release
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub release from tag
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'Ding-sl' }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "ComfyUI-LinkSpotlight $GITHUB_REF_NAME" \
+            --notes-from-tag
