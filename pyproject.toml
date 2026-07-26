@@ -1,0 +1,16 @@
+[project]
+name = "comfyui-linkspotlight"
+description = "Alt+H spotlight for ComfyUI: hide or dim every link that doesn't touch the selected node. Frontend-only, zero nodes, zero dependencies."
+version = "1.0.0"
+license = { file = "LICENSE" }
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/Ding-sl/ComfyUI-LinkSpotlight"
+BugTracker = "https://github.com/Ding-sl/ComfyUI-LinkSpotlight/issues"
+
+[tool.comfy]
+# PublisherId: set this after creating your publisher on https://registry.comfy.org
+PublisherId = ""
+DisplayName = "LinkSpotlight"
+Icon = ""
