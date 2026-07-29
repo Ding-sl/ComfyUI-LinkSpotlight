@@ -1,5 +1,10 @@
 # ComfyUI-LinkSpotlight
 
+[![ComfyUI compatibility](https://img.shields.io/badge/ComfyUI-0.28.x_--_0.29.x_verified-brightgreen)](https://github.com/Comfy-Org/ComfyUI/releases)
+[![Frontend compatibility](https://img.shields.io/badge/comfyui--frontend--package-1.45_--_1.47_verified-brightgreen)](https://github.com/Comfy-Org/ComfyUI_frontend)
+[![Comfy Registry](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.comfy.org%2Fnodes%2Fcomfyui-linkspotlight&query=%24.latest_version.version&label=Comfy_Registry&prefix=v&color=blue)](https://registry.comfy.org/publishers/ding-sl/nodes/comfyui-linkspotlight)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+
 ![ComfyUI-LinkSpotlight](assets/images/ComfyUI-LinkSpotlight.png)
 
 Press **Alt+H** and instantly see only the links that matter: LinkSpotlight
@@ -83,8 +88,10 @@ the canvas — worst case you lose the spotlight until an update here.
 
 ## Compatibility
 
-- Developed and tested against `comfyui-frontend-package` **1.45.x**
-  (ComfyUI v0.28). Should work on any recent 1.4x frontend.
+- Verified against `comfyui-frontend-package` **1.45 – 1.47** (ComfyUI
+  **v0.28.x – v0.29.x**) — each new ComfyUI release is audited against the
+  internal APIs this extension wraps, and the badges above track the latest
+  verified version. Should work on any recent 1.4x frontend.
 - **Vue nodes beta ("Nodes 2.0"): supported** — the link spotlight works the
   same there. Only the optional *node dimming* setting has no effect in that
   mode: Vue nodes are DOM-rendered, not canvas-drawn.
