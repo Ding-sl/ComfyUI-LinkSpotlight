@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-linkspotlight"
 description = "Alt+H spotlight for ComfyUI: hide or dim every link that doesn't touch the selected node. Frontend-only, zero nodes, zero dependencies."
-version = "1.0.1"
+version = "1.2.0"
 license = { file = "LICENSE" }
 dependencies = []
 

@@ -1,216 +1,69 @@
-// ComfyUI-LinkSpotlight
-// Alt+H (remappable in Settings → Keybinding): show only the links touching
-// the selected node(s) — every other link is hidden (or dimmed, depending on
-// the settings). Press Alt+H again (or clear the selection, when auto-off is
-// enabled) to restore the normal display.
+// ComfyUI-LinkSpotlight — extension entry point.
 //
-// Implementation: non-destructive wrappers around the LGraphCanvas prototype
-// (frontend 1.4x) — drawConnections() recomputes the focus set once per frame
-// (so the spotlight follows the selection with no event wiring) and
-// _renderAllLinkSegments() decides per link whether to draw, dim or skip.
-// Nothing in the workflow is ever mutated: no hidden state can leak into the
-// serialized JSON. Floating links and subgraph links go through the same
-// render path and are covered automatically.
+// Alt+H (remappable in Settings → Keybinding), the selection toolbox button
+// or the node context menu: show only the links touching the selected
+// node(s) or group(s) — every other link is hidden (or dimmed, depending on
+// the settings). Traversal depth (1/2/3/∞) and direction (both/upstream/
+// downstream) are configurable; an optional hover mode follows the node
+// under the cursor when nothing is selected. While the canvas "hide links"
+// button is on, a selection also reveals its links automatically (opt-out,
+// no shortcut needed).
 //
-// Fragility note: _renderAllLinkSegments is an internal frontend API; if an
-// update renames it, the patch disables itself cleanly (see patchCanvas)
-// with a console error instead of breaking the canvas.
+// This file only does registration (commands, keybinding, menus, settings).
+// The focus computation lives in focus.js, the canvas patches in render.js
+// and the shared state in state.js.
 
 import { app } from "../../../scripts/app.js";
+import {
+    COMMAND_ID,
+    EXT_NAME,
+    FULL_TRACE,
+    SETTINGS,
+    getSetting,
+    state,
+} from "./state.js";
+import { isGroupItem } from "./focus.js";
+import { patchCanvas, refreshCanvas, updateIndicator } from "./render.js";
+import { injectTopbarButton } from "./topbar.js";
 
-const EXT_NAME = "LinkSpotlight";
-const COMMAND_ID = "LinkSpotlight.Toggle";
+// Logged at setup so a stale browser-cached copy of this file is easy to
+// spot from the console.
+const VERSION = "1.2.0";
 
-const SETTINGS = {
-    dimAlpha: { id: "LinkSpotlight.DimAlpha", def: 0 },
-    depth: { id: "LinkSpotlight.Depth", def: 1 },
-    autoOff: { id: "LinkSpotlight.AutoOff", def: true },
-    nodeAlpha: { id: "LinkSpotlight.NodeAlpha", def: 1 },
-};
-
-let spotlightActive = false;
-let canvasPatched = false;
-
-// IDs (normalized to String) recomputed at the start of every frame.
-const selectedIds = new Set(); // selected nodes
-const neighborIds = new Set(); // direct neighbors of the selection
-let linkFocusIds = selectedIds; // set used to filter links
-
-// Alphas cached once per frame (in drawConnections): the hot paths (per link,
-// per node) must never query the settings store — one lookup per node per
-// frame would add up on large graphs.
-let frameDimAlpha = 0;
-let frameNodeAlpha = 1;
-
-function getSetting(key) {
-    const s = SETTINGS[key];
-    const value = app.extensionManager?.setting?.get?.(s.id);
-    return value === undefined || value === null ? s.def : value;
-}
-
-// Hardened numeric read: a corrupted settings storage must never inject NaN
-// into the alpha math.
-function getNumericSetting(key) {
-    const value = Number(getSetting(key));
-    return Number.isFinite(value) ? value : SETTINGS[key].def;
-}
-
-function getLink(graph, linkId) {
-    return graph._links?.get?.(linkId) ?? graph.links?.[linkId];
-}
-
-// Fills selectedIds/neighborIds from the current selection and picks the
-// filtering set according to the depth setting (1 = links of the selected
-// node only, 2 = every link of its direct neighbors too).
-function computeFocus(canvas) {
-    selectedIds.clear();
-    neighborIds.clear();
-    const graph = canvas.graph;
-    const selected = canvas.selected_nodes ?? {};
-    for (const key in selected) {
-        const node = selected[key];
-        if (node) selectedIds.add(String(node.id));
-    }
-    if (graph && selectedIds.size) {
-        for (const key in selected) {
-            const node = selected[key];
-            if (!node) continue;
-            for (const input of node.inputs ?? []) {
-                if (input?.link == null) continue;
-                const link = getLink(graph, input.link);
-                if (link) neighborIds.add(String(link.origin_id));
-            }
-            for (const output of node.outputs ?? []) {
-                for (const linkId of output?.links ?? []) {
-                    const link = getLink(graph, linkId);
-                    if (link) neighborIds.add(String(link.target_id));
-                }
-            }
-        }
-    }
-    linkFocusIds = getNumericSetting("depth") >= 2
-        ? new Set([...selectedIds, ...neighborIds])
-        : selectedIds;
-}
-
-function isLinkFocused(link) {
-    return linkFocusIds.has(String(link.origin_id))
-        || linkFocusIds.has(String(link.target_id));
-}
-
-// A node stays fully visible when it is selected or a direct neighbor
-// (regardless of the depth chosen for links).
-function isNodeKept(node) {
-    const id = String(node.id);
-    return selectedIds.has(id) || neighborIds.has(id);
-}
-
-function patchCanvas() {
+function hasSpotlightTarget() {
     const canvas = app.canvas;
-    if (!canvas) {
-        console.error(`${EXT_NAME}: app.canvas unavailable, feature disabled`);
-        return false;
-    }
-    const proto = Object.getPrototypeOf(canvas);
-    if (typeof proto.drawConnections !== "function"
-        || typeof proto._renderAllLinkSegments !== "function"
-        || typeof proto.drawNode !== "function") {
-        console.error(
-            `${EXT_NAME}: unexpected LGraphCanvas API (frontend update?), `
-            + `feature disabled`,
-        );
-        return false;
-    }
-
-    const origDrawConnections = proto.drawConnections;
-    proto.drawConnections = function (...args) {
-        if (spotlightActive) {
-            computeFocus(this);
-            frameDimAlpha = getNumericSetting("dimAlpha");
-            frameNodeAlpha = getNumericSetting("nodeAlpha");
-            if (!selectedIds.size && getSetting("autoOff")) {
-                spotlightActive = false;
-            }
-        }
-        return origDrawConnections.apply(this, args);
-    };
-
-    const origRenderSegments = proto._renderAllLinkSegments;
-    proto._renderAllLinkSegments = function (ctx, link, ...rest) {
-        // Empty selection without auto-off: never blind the whole graph.
-        if (!spotlightActive || !selectedIds.size || !link || isLinkFocused(link)) {
-            return origRenderSegments.apply(this, arguments);
-        }
-        if (!(frameDimAlpha > 0)) return undefined; // link hidden
-        const prevAlpha = ctx.globalAlpha;
-        ctx.globalAlpha = prevAlpha * frameDimAlpha;
-        try {
-            return origRenderSegments.apply(this, arguments);
-        } finally {
-            ctx.globalAlpha = prevAlpha;
-        }
-    };
-
-    // Optional dimming of out-of-focus nodes, through editor_alpha (used by
-    // the node's whole internal rendering) rather than ctx.globalAlpha
-    // (overwritten by drawNode). NodeAlpha = 1 → option inactive.
-    const origDrawNode = proto.drawNode;
-    proto.drawNode = function (node, ctx) {
-        if (!spotlightActive || !selectedIds.size || frameNodeAlpha >= 1
-            || !node || isNodeKept(node)) {
-            return origDrawNode.apply(this, arguments);
-        }
-        const prevAlpha = this.editor_alpha;
-        this.editor_alpha = prevAlpha * Math.max(frameNodeAlpha, 0.02);
-        try {
-            return origDrawNode.apply(this, arguments);
-        } finally {
-            this.editor_alpha = prevAlpha;
-        }
-    };
-
-    // Redraw (background + foreground: links may be drawn on top with
-    // links_ontop) as soon as the selection changes while the spotlight is
-    // active — avoids a stale visual state when only the foreground is dirty.
-    // Deliberately patched on the INSTANCE: onSelectionChange is a class
-    // field of LGraphCanvas (an instance property initialized to undefined),
-    // so a prototype patch would be shadowed and never called.
-    const origOnSelectionChange = canvas.onSelectionChange;
-    canvas.onSelectionChange = function (...args) {
-        const r = origOnSelectionChange?.apply(this, args);
-        if (spotlightActive) this.setDirty(true, true);
-        return r;
-    };
-
-    return true;
-}
-
-// Called by the settings store on every value change: force a full frame
-// (background + foreground) so the effect is immediate while the spotlight
-// is active — the per-frame cache (frameDimAlpha/frameNodeAlpha) is refreshed
-// by the drawConnections pass this redraw triggers.
-function refreshCanvas() {
-    if (spotlightActive) app.canvas?.setDirty(true, true);
+    if (Object.values(canvas?.selected_nodes ?? {}).some(Boolean)) return true;
+    let hasGroup = false;
+    canvas?.selectedItems?.forEach?.((item) => {
+        if (isGroupItem(item)) hasGroup = true;
+    });
+    // Hover mode can start from an empty selection: the spotlight will
+    // follow the cursor.
+    return hasGroup || getSetting("hoverMode");
 }
 
 function toggleSpotlight() {
-    if (!canvasPatched) return;
-    if (!spotlightActive) {
-        // Same predicate as computeFocus (ignores stale falsy entries).
-        const hasSelection =
-            Object.values(app.canvas?.selected_nodes ?? {}).some(Boolean);
-        if (!hasSelection) {
-            app.extensionManager?.toast?.add?.({
-                severity: "info",
-                summary: "Link Spotlight",
-                detail: "Select a node first to spotlight its links.",
-                life: 3000,
-            });
-            return;
-        }
+    if (!state.patched) return;
+    if (!state.active && !hasSpotlightTarget()) {
+        app.extensionManager?.toast?.add?.({
+            severity: "info",
+            summary: "Link Spotlight",
+            detail: "Select a node or group first to spotlight its links.",
+            life: 3000,
+        });
+        return;
     }
-    spotlightActive = !spotlightActive;
+    state.active = !state.active;
+    if (!state.active) {
+        state.hoverNode = null;
+        state.hoverNodeId = null;
+    }
+    updateIndicator();
     app.canvas?.setDirty(true, true);
+}
+
+function menuLabel() {
+    return state.active ? "🔦 Link Spotlight off" : "🔦 Spotlight links";
 }
 
 app.registerExtension({
@@ -219,7 +72,9 @@ app.registerExtension({
         {
             id: COMMAND_ID,
             label: "Toggle Link Spotlight (selected node links)",
-            icon: "pi pi-eye",
+            // Function form: the selection toolbox re-evaluates it on each
+            // render, so the icon tracks the active state.
+            icon: () => (state.active ? "pi pi-eye-slash" : "pi pi-eye"),
             function: toggleSpotlight,
         },
     ],
@@ -231,6 +86,37 @@ app.registerExtension({
             commandId: COMMAND_ID,
         },
     ],
+    // Floating toolbox above the selection: only visible when something is
+    // selected, which is exactly when the toggle is usable.
+    getSelectionToolboxCommands: () => [COMMAND_ID],
+    getNodeMenuItems(node) {
+        return [
+            null, // separator
+            {
+                content: menuLabel(),
+                callback: () => {
+                    // Right-click does not always select: make the clicked
+                    // node the target when nothing else is selected.
+                    const canvas = app.canvas;
+                    if (!state.active && canvas
+                        && !Object.values(canvas.selected_nodes ?? {})
+                            .some(Boolean)) {
+                        canvas.selectNode?.(node);
+                    }
+                    toggleSpotlight();
+                },
+            },
+        ];
+    },
+    // Escape hatch on the canvas menu, only while active (with auto-off
+    // disabled the spotlight can outlive the selection).
+    getCanvasMenuItems() {
+        if (!state.active) return [];
+        return [
+            null,
+            { content: "🔦 Link Spotlight off", callback: toggleSpotlight },
+        ];
+    },
     settings: [
         {
             id: SETTINGS.dimAlpha.id,
@@ -245,26 +131,6 @@ app.registerExtension({
             onChange: refreshCanvas,
         },
         {
-            id: SETTINGS.depth.id,
-            name: "Spotlight depth",
-            type: "combo",
-            options: [
-                { text: "1 — links of the selected node", value: 1 },
-                { text: "2 — links of direct neighbors too", value: 2 },
-            ],
-            defaultValue: SETTINGS.depth.def,
-            category: ["LinkSpotlight", "Behavior", "Depth"],
-            onChange: refreshCanvas,
-        },
-        {
-            id: SETTINGS.autoOff.id,
-            name: "Turn off when the selection is cleared",
-            type: "boolean",
-            defaultValue: SETTINGS.autoOff.def,
-            category: ["LinkSpotlight", "Behavior", "Auto-off"],
-            onChange: refreshCanvas,
-        },
-        {
             id: SETTINGS.nodeAlpha.id,
             name: "Opacity of out-of-focus nodes",
             type: "slider",
@@ -276,8 +142,109 @@ app.registerExtension({
             category: ["LinkSpotlight", "Appearance", "Node opacity"],
             onChange: refreshCanvas,
         },
+        {
+            id: SETTINGS.focusWidth.id,
+            name: "Width boost of focused links",
+            type: "slider",
+            attrs: { min: 1, max: 3, step: 0.1 },
+            defaultValue: SETTINGS.focusWidth.def,
+            tooltip: "Draw the spotlighted links thicker. ×1 = off.",
+            category: ["LinkSpotlight", "Appearance", "Focus width"],
+            onChange: refreshCanvas,
+        },
+        {
+            id: SETTINGS.focusGlow.id,
+            name: "Glow of focused links",
+            type: "slider",
+            attrs: { min: 0, max: 20, step: 1 },
+            defaultValue: SETTINGS.focusGlow.def,
+            tooltip:
+                "Golden glow (in pixels) around the spotlighted links. "
+                + "0 = off.",
+            category: ["LinkSpotlight", "Appearance", "Focus glow"],
+            onChange: refreshCanvas,
+        },
+        {
+            id: SETTINGS.showIndicator.id,
+            name: "Show on-canvas indicator while active",
+            type: "boolean",
+            defaultValue: SETTINGS.showIndicator.def,
+            tooltip:
+                "Small pill at the top of the canvas reminding you the "
+                + "spotlight is on (with its current depth/direction).",
+            category: ["LinkSpotlight", "Appearance", "Indicator"],
+            onChange: refreshCanvas,
+        },
+        {
+            id: SETTINGS.depth.id,
+            name: "Spotlight depth",
+            type: "combo",
+            options: [
+                { text: "1 — links of the selected node(s)", value: 1 },
+                { text: "2 — plus direct neighbors' links", value: 2 },
+                { text: "3 — two hops out", value: 3 },
+                { text: "∞ — full trace", value: FULL_TRACE },
+            ],
+            defaultValue: SETTINGS.depth.def,
+            tooltip:
+                "How far the spotlight spreads from the selection. Reroute "
+                + "nodes are traversed for free and never consume a hop.",
+            category: ["LinkSpotlight", "Behavior", "Depth"],
+            onChange: refreshCanvas,
+        },
+        {
+            id: SETTINGS.direction.id,
+            name: "Traversal direction",
+            type: "combo",
+            options: [
+                { text: "Both directions", value: "both" },
+                { text: "Upstream — where the data comes from", value: "upstream" },
+                { text: "Downstream — where the data goes", value: "downstream" },
+            ],
+            defaultValue: SETTINGS.direction.def,
+            tooltip:
+                "Upstream follows inputs only, downstream follows outputs "
+                + "only. Combine with depth ∞ to trace a full lineage.",
+            category: ["LinkSpotlight", "Behavior", "Direction"],
+            onChange: refreshCanvas,
+        },
+        {
+            id: SETTINGS.autoOff.id,
+            name: "Turn off when the selection is cleared",
+            type: "boolean",
+            defaultValue: SETTINGS.autoOff.def,
+            category: ["LinkSpotlight", "Behavior", "Auto-off"],
+            onChange: refreshCanvas,
+        },
+        {
+            id: SETTINGS.revealHidden.id,
+            name: "Override the \"hide links\" button",
+            type: "boolean",
+            defaultValue: SETTINGS.revealHidden.def,
+            tooltip:
+                "While the canvas hide-links button is on, selecting node(s) "
+                + "still reveals their links, using the depth/direction and "
+                + "opacity settings above. Clear the selection and everything "
+                + "hides again. Off = the button is absolute.",
+            category: ["LinkSpotlight", "Behavior", "Override hide links"],
+            onChange: refreshCanvas,
+        },
+        {
+            id: SETTINGS.hoverMode.id,
+            name: "Hover mode",
+            type: "boolean",
+            defaultValue: SETTINGS.hoverMode.def,
+            tooltip:
+                "While the spotlight is active and nothing is selected, it "
+                + "follows the node under the cursor. Auto-off is ignored "
+                + "while this is enabled.",
+            category: ["LinkSpotlight", "Behavior", "Hover mode"],
+            onChange: refreshCanvas,
+        },
     ],
     setup() {
-        canvasPatched = patchCanvas();
+        console.info(`${EXT_NAME}: v${VERSION} loaded`);
+        state.patched = patchCanvas();
+        injectTopbarButton(toggleSpotlight);
     },
 });
