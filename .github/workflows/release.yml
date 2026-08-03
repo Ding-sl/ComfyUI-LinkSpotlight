@@ -25,8 +25,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # actions/checkout fetches tags as lightweight (annotated tag
+          # objects are peeled), which breaks --notes-from-tag. Re-fetch the
+          # real tag object and read its message explicitly instead.
+          git fetch origin --force "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
           gh release create "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --title "ComfyUI-LinkSpotlight $GITHUB_REF_NAME" \
-            --notes-from-tag \
+            --notes-file "$RUNNER_TEMP/notes.md" \
             --latest
