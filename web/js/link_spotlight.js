@@ -28,7 +28,7 @@ import { injectTopbarButton } from "./topbar.js";
 
 // Logged at setup so a stale browser-cached copy of this file is easy to
 // spot from the console.
-const VERSION = "1.2.0";
+const VERSION = "1.2.1";
 
 function hasSpotlightTarget() {
     const canvas = app.canvas;
