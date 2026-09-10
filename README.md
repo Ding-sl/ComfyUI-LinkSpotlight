@@ -18,7 +18,7 @@ into a readable one while you edit.
 
 - **Shortcut, button or menu** — Alt+H toggles the spotlight (remappable in
   *Settings → Keybinding*, command `LinkSpotlight.Toggle`); the same toggle
-  lives in the **topbar** (👁 *Spotlight* button next to the settings group),
+  lives in the **topbar** (👁 *Spotlight* button, just left of *Run*),
   in the **selection toolbox** (the floating bar above selected nodes), in
   the **node right-click menu**, and in the command palette.
 - **Follows your selection live** — click another node and the spotlight moves
@@ -145,6 +145,10 @@ the canvas — worst case you lose the spotlight until an update here.
   **v0.28.x – v0.35.x**) — each new ComfyUI release is audited against the
   internal APIs this extension wraps, and the badges above track the latest
   verified version. Should work on any recent 1.4x frontend.
+- **Topbar button on the public API** — declared through the frontend's
+  `actionBarButtons` extension field (frontend ≥ 1.49), so no deprecated
+  `/scripts/ui/components` import. Frontends without an action bar get the
+  legacy button through `window.comfyAPI` instead.
 - **Vue nodes beta ("Nodes 2.0"): supported** — the link spotlight works the
   same there. Only the optional *node dimming* setting has no effect in that
   mode: Vue nodes are DOM-rendered, not canvas-drawn.

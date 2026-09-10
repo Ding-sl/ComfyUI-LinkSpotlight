@@ -24,11 +24,11 @@ import {
 } from "./state.js";
 import { isGroupItem } from "./focus.js";
 import { patchCanvas, refreshCanvas, updateIndicator } from "./render.js";
-import { injectTopbarButton } from "./topbar.js";
+import { actionBarButtons, ensureTopbarButton } from "./topbar.js";
 
 // Logged at setup so a stale browser-cached copy of this file is easy to
 // spot from the console.
-const VERSION = "1.2.1";
+const VERSION = "1.3.0";
 
 function hasSpotlightTarget() {
     const canvas = app.canvas;
@@ -89,6 +89,9 @@ app.registerExtension({
     // Floating toolbox above the selection: only visible when something is
     // selected, which is exactly when the toggle is usable.
     getSelectionToolboxCommands: () => [COMMAND_ID],
+    // Topbar button through the public action-bar API (see topbar.js for the
+    // active-state handling and the legacy fallback).
+    actionBarButtons: actionBarButtons(toggleSpotlight),
     getNodeMenuItems(node) {
         return [
             null, // separator
@@ -245,6 +248,6 @@ app.registerExtension({
     setup() {
         console.info(`${EXT_NAME}: v${VERSION} loaded`);
         state.patched = patchCanvas();
-        injectTopbarButton(toggleSpotlight);
+        ensureTopbarButton(toggleSpotlight);
     },
 });
